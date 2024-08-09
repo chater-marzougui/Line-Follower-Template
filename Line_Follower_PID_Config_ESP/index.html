@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <title>ESP8266 Control Panel</title>
+
+  <style>
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #333;
+    }
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .input-group {
+      margin: 10px 0;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #555;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .button {
+      background-color: #195B6A;
+      border: none;
+      color: white;
+      padding: 16px 40px;
+      text-decoration: none;
+      font-size: 16px;
+      margin: 10px 0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .button2 {
+      background-color: #77878A;
+    }
+    #response {
+      margin-top: 20px;
+      color: #333;
+    }
+    table {
+        width: 100%;
+        margin: 20px 0;
+        border-collapse: collapse;
+        background: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+        padding: 12px;
+        text-align: center;
+        border-bottom: 1px solid #ddd;
+    }
+    th {
+        background-color: #195B6A;
+        color: white;
+    }
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+  </style>
+</head>
+<body>
+  <h1>ESP8266 Control Panel</h1>
+  <div class='container'>
+    <div class='input-group'>
+      <label for='baseSpeed'>Base Speed:</label>
+      <input type='text' id='baseSpeed' value=''>
+    </div>
+    <div class='input-group'>
+      <label for='kp'>Kp:</label>
+      <input type='text' id='kp' value=''>
+    </div>
+    <div class='input-group'>
+      <label for='kd'>Kd:</label>
+      <input type='text' id='kd' value=''>
+    </div>
+    <button class='button' onclick='sendValues()'>Update Values</button>
+    <button class='button button2' onclick='getValues()'>Get Values</button>
+    <p id='response'></p>
+    <table id='data-table'>
+        <thead>
+            <tr>
+                <th>Base Speed</th>
+                <th>Kp</th>
+                <th>Kd</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+  </div>
+  <script>
+    function sendValues() {
+      var baseSpeed = document.getElementById('baseSpeed').value;
+      var kp = document.getElementById('kp').value;
+      var kd = document.getElementById('kd').value;
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/update', true);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.send('baseSpeed=' + baseSpeed + '&kp=' + kp + '&kd=' + kd);
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          addToTable(xhr.responseText);
+        } else {
+          document.getElementById('response').innerText = 'Error: ' + xhr.statusText;
+        }
+      };
+    }
+
+    function getValues() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/getData', true);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.send('');
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log(xhr.responseText);
+          addToTable(xhr.responseText, false);
+        } else {
+          document.getElementById('response').innerText = 'Error: ' + xhr.statusText;
+        }
+      };
+    }
+    function addToTable(data, isSent = true) {
+        const tableBody = document.getElementById('data-table').getElementsByTagName('tbody')[0];
+        const newRow = tableBody.insertRow(0);
+
+        const cellBaseSpeed = newRow.insertCell(0);
+        const cellKp = newRow.insertCell(1);
+        const cellKd = newRow.insertCell(2);
+        newRow.style.backgroundColor = isSent ? 'rgb(177 29 29 / 25%)' : 'rgb(44 177 29 / 25%)';
+        const adaptedData = JSON.parse(data);
+        cellBaseSpeed.textContent = adaptedData.baseSpeed;
+        cellKp.textContent = adaptedData.kp;
+        cellKd.textContent = adaptedData.kd;
+    }
+  </script>
+</body>
+</html>

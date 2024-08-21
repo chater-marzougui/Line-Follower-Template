@@ -14,16 +14,16 @@ float Kp = 0.2;
 float Kp_sound = 50;
 float Kd_sound =3;
 const uint8_t minSpeedDashed = 60;
-const uint8_t qtrSensorsArray[] = {A0, A1, A2, A3, A4, A5, 11, 10};
+const uint8_t qtrSensorsArray[] = {11, 10, A0, A1, A2, A3, A4, A5};
 const uint8_t sideSensorsArray[] = {A6, A7}; // Right -> Left
 const uint16_t optimalPosition_sound = 5; // Distance from wall in cm
 
-#define useDistanceSensor true 
-#define rightmotorforward 5
-#define rightmotorback 6
-#define leftmotorforward 9
-#define leftmotorback 10
-#define startButton 12
+#define useDistanceSensor false 
+#define rightmotorforward 6
+#define rightmotorback 5
+#define leftmotorforward 3
+#define leftmotorback 9
+#define startButton 13
 
 #if useDistanceSensor
   #define trigpin 7
@@ -35,6 +35,7 @@ const uint16_t optimalPosition_sound = 5; // Distance from wall in cm
 const uint8_t numberOfQtrSensors = sizeof(qtrSensorsArray) / sizeof(qtrSensorsArray[0]);
 const uint8_t numberOfSideSensors = sizeof(sideSensorsArray) / sizeof(sideSensorsArray[0]);
 const uint16_t optimalPosition = (numberOfQtrSensors - 1) * 500;
+bool work = true;
 
 bool isArduinoNano = false;
 #if defined(A7)
@@ -85,10 +86,10 @@ void setPinModes(){
   qtrSensors.setTypeRC();
   qtrSensors.setSensorPins(qtrSensorsArray, numberOfQtrSensors);
   
-  if (useDistanceSensor){
-    pinMode(trigpin,OUTPUT);
-    pinMode(echopin,INPUT);
-  }
+  // if (useDistanceSensor){
+  //   pinMode(trigpin,OUTPUT);
+  //   pinMode(echopin,INPUT);
+  // }
   if (isArduinoNano) {
     sideSensors.setTypeAnalog();
     sideSensors.setSensorPins(sideSensorsArray, numberOfSideSensors);
@@ -107,10 +108,14 @@ int lastMotorSpeedL = 0;
 int lastMotorSpeedR = 0;
 
 void steerCar(int motorspeedl, int motorspeedr, int delayTime = 0) {
+  if (!work){
+    motorspeedl = 0;
+    motorspeedr = 0;
+  }
   if (motorspeedl != lastMotorSpeedL || motorspeedr != lastMotorSpeedR) {
     analogWrite(rightmotorforward, max(motorspeedr, 0));
-    analogWrite(leftmotorback, max(motorspeedl, 0));
-    analogWrite(rightmotorforward, max(0, -motorspeedr));
+    analogWrite(leftmotorforward, max(motorspeedl, 0));
+    analogWrite(rightmotorback, max(0, -motorspeedr));
     analogWrite(leftmotorback, max(0, -motorspeedl));
     
     lastMotorSpeedL = motorspeedl;
@@ -156,12 +161,12 @@ void PID_control_dashedLine(LineColor color = Black) {
 
 float distance(){
   float duration;
-  digitalWrite(trigpin, LOW);
+  // digitalWrite(trigpin, LOW);
   delayMicroseconds(2);
-  digitalWrite(trigpin, HIGH);
+  // digitalWrite(trigpin, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trigpin, LOW);
-  duration = pulseIn(echopin, HIGH);
+  // digitalWrite(trigpin, LOW);
+  // duration = pulseIn(echopin, HIGH);
   return duration * 0.034 / 2;
 }
 
@@ -178,7 +183,7 @@ void soundPid(){
 
 void qtrcalibration() {
   steerCar(-120,120);
-  for (uint16_t i = 0; i < 400; i++)
+  for (uint16_t i = 0; i < 250; i++)
   {
     qtrSensors.calibrate();
     if(isArduinoNano){
@@ -232,7 +237,19 @@ uint8_t positionFromSideSensors(LineColor color = Black){
 }
 
 void manageSerial(String val) {
-  if (val.substring(0, 2) == "{\"") {
+  val.trim();
+  String jsonData = "";
+  if (val == "QTR8RC"){
+    String sensorValues = "[";
+    for (int i = 0; i < numberOfQtrSensors; i++) {
+      sensorValues += String(qtrSensorValues[i]);
+      if (i < numberOfQtrSensors - 1) sensorValues += ", ";
+    }
+
+    jsonData = "{\"qtrSensorValues\": " + sensorValues + "], \"position\":" +String(position) + "}";
+    
+    ESP8266.println(jsonData);
+  } else if (val.substring(0, 2) == "{\"") {
     DeserializationError error = deserializeJson(doc, val);
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
@@ -243,12 +260,17 @@ void manageSerial(String val) {
     baseSpeed = doc["baseSpeed"].as<String>().toInt();
     Kd = doc["kd"].as<String>().toFloat();
     Kp = doc["kp"].as<String>().toFloat();
-    Serial.print("Adjusting Data: ");
     Serial.println(val);
     
+  } else if (val == "run"){
+    work = true;
+    ESP8266.println("true");
+  } else if (val == "stop"){
+    work = false;
+    ESP8266.println("false");
   } else {
     Serial.println("Sending Data");
-    String jsonData = "{\"baseSpeed\" :"+ String(baseSpeed) + ", \"kd\": " + String(Kd) + ", \"kp\": " + String(Kp) + "}";
+    jsonData = "{\"baseSpeed\" :"+ String(baseSpeed) + ", \"kd\": " + String(Kd) + ", \"kp\": " + String(Kp) + "}";
     Serial.println(jsonData);
     ESP8266.println(jsonData);
   }

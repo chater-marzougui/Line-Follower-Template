@@ -3,8 +3,11 @@
 <head>
   <meta charset='UTF-8'>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
-  <title>ESP8266 Control Panel</title>
+  <meta http-equiv='X-UA-Compatible' content='ie=edge'>
+  <meta name='author' content='Chater Marzougui'>
 
+  <title>ESP8266 Control Panel</title>
+  <link rel='icon' href='https://www.arduino.cc/en/uploads/Trademark/ArduinoCommunityLogo.png' type='image/x-icon'>
   <style>
     body {
       font-family: Helvetica, Arial, sans-serif;
@@ -19,14 +22,21 @@
       margin-top: 20px;
       color: #333;
     }
+    .row {
+      display: flex;
+      width: 100%;
+      margin-top: 20px;
+    }
     .container {
       background-color: #fff;
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      width: 90%;
-      max-width: 400px;
       text-align: center;
+      margin: 10px;
+    }
+    .last {
+      flex-grow: 1;
     }
     .input-group {
       margin: 10px 0;
@@ -39,7 +49,7 @@
     .input-group input {
       width: 100%;
       padding: 10px;
-      border: 1px solid #ccc;
+      border: 1px solid #c80d0ddb;
       border-radius: 4px;
     }
     .button {
@@ -61,11 +71,18 @@
       color: #333;
     }
     table {
-        width: 100%;
-        margin: 20px 0;
-        border-collapse: collapse;
-        background: white;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      margin: 20px 0;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    table#data-table-QTR th {
+        background-color: #195B6A; /* Consistent with first table */
+        color: white;
+    }
+    table#data-table-QTR tr:hover {
+        background-color: #f1f1f1; /* Consistent hover effect */
     }
     th, td {
         padding: 12px;
@@ -83,35 +100,56 @@
 </head>
 <body>
   <h1>ESP8266 Control Panel</h1>
-  <div class='container'>
-    <div class='input-group'>
-      <label for='baseSpeed'>Base Speed:</label>
-      <input type='text' id='baseSpeed' value=''>
+  <div class="row">
+    <div class='container'>
+      <div class='input-group'>
+        <label for='baseSpeed'>Base Speed:</label>
+        <input type='text' id='baseSpeed' value=''>
+      </div>
+      <div class='input-group'>
+        <label for='kp'>Kp:</label>
+        <input type='text' id='kp' value=''>
+      </div>
+      <div class='input-group'>
+        <label for='kd'>Kd:</label>
+        <input type='text' id='kd' value=''>
+      </div>
+      <button class='button' onclick='sendValues()'>Update Values</button>
+      <button class='button button2' onclick='getValues()'>Get Values</button>
+      <p id='response'></p>
+      <table id='data-table'>
+          <thead>
+              <tr>
+                  <th>Base Speed</th>
+                  <th>Kp</th>
+                  <th>Kd</th>
+              </tr>
+          </thead>
+          <tbody>
+          </tbody>
+      </table>
     </div>
-    <div class='input-group'>
-      <label for='kp'>Kp:</label>
-      <input type='text' id='kp' value=''>
+    <div>
+      <button class='button' id='toggleWorking' onclick='toggleWorking()'>Stop</button>
     </div>
-    <div class='input-group'>
-      <label for='kd'>Kd:</label>
-      <input type='text' id='kd' value=''>
-    </div>
-    <button class='button' onclick='sendValues()'>Update Values</button>
-    <button class='button button2' onclick='getValues()'>Get Values</button>
-    <p id='response'></p>
-    <table id='data-table'>
+    <div class="container last">
+      <div>
+        <button class='button' id='toggleQTRButton' onclick='toggleQTRPolling()'>Start QTR Sensor Polling</button>
+      </div>
+      <table id='data-table-QTR'>
         <thead>
-            <tr>
-                <th>Base Speed</th>
-                <th>Kp</th>
-                <th>Kd</th>
-            </tr>
+          <tr>
+            <th>QTR Sensor Values</th>
+            <th>Position</th>
+          </tr>
         </thead>
         <tbody>
         </tbody>
-    </table>
+      </table>
+    </div>
   </div>
   <script>
+    var work = true;
     function sendValues() {
       var baseSpeed = document.getElementById('baseSpeed').value;
       var kp = document.getElementById('kp').value;
@@ -128,7 +166,21 @@
         }
       };
     }
-
+    function toggleWorking() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/toggleWorking', true);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.send('work=' + work ? 'run' : 'stop');
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          document.getElementById('toggleWorking').textContent = xhr.responseText === 'true' ? 'Stop' : 'Start';
+          work = xhr.responseText === 'true';
+          document.getElementById('toggleWorking').style.backgroundColor = work ? '#27bd0c' : '#d71717';
+        } else {
+          document.getElementById('response').innerText = 'Error: ' + xhr.statusText;
+        }
+      };
+    }
     function getValues() {
       var xhr = new XMLHttpRequest();
       xhr.open('POST', '/getData', true);
@@ -155,6 +207,52 @@
         cellBaseSpeed.textContent = adaptedData.baseSpeed;
         cellKp.textContent = adaptedData.kp;
         cellKd.textContent = adaptedData.kd;
+    }
+    let isPolling = false;
+    let pollingInterval;
+
+    function toggleQTRPolling() {
+      isPolling = !isPolling;
+      const button = document.getElementById('toggleQTRButton');
+      
+      if (isPolling) {
+        button.textContent = 'Stop QTR Sensor Polling';
+        startQTRPolling();
+      } else {
+        button.textContent = 'Start QTR Sensor Polling';
+        stopQTRPolling();
+      }
+    }
+
+    function startQTRPolling() {
+      pollingInterval = setInterval(getQTRvalue, 200);
+    }
+
+    function stopQTRPolling() {
+      clearInterval(pollingInterval);
+    }
+    function getQTRvalue() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/getQTRData', true);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      xhr.send('');
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          console.log(xhr.responseText);
+          addToTableQTR(xhr.responseText);
+        } else {
+          document.getElementById('response').innerText = 'Error: ' + xhr.statusText;
+        }
+      };
+    }
+    function addToTableQTR(data) {
+      const tableBody = document.getElementById('data-table-QTR').getElementsByTagName('tbody')[0];
+      const newRow = tableBody.insertRow(0);
+      const cellQTRValues = newRow.insertCell(0);
+      const position = newRow.insertCell(1);
+      const adaptedData = JSON.parse(data);  
+      cellQTRValues.textContent = adaptedData.qtrSensorValues.join('\t');
+      position.textContent = adaptedData.position;
     }
   </script>
 </body>

@@ -207,6 +207,6 @@ Chater Marzougui - [@Chater-marzougui][linkedin-url] - chater.mrezgui2002@gmail.
 [issues-shield]: https://img.shields.io/github/issues/chater-marzougui/Line-Follower-Template.svg?style=for-the-badge
 [issues-url]: https://github.com/chater-marzougui/Line-Follower-Template/issues
 [license-shield]: https://img.shields.io/github/license/chater-marzougui/Line-Follower-Template.svg?style=for-the-badge
-[license-url]: https://github.com/chater-marzougui/Line-Follower-Template/blob/master/LICENSE.txt
+[license-url]: https://github.com/chater-marzougui/Line-Follower-Template/blob/master/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/chater-marzougui-342125299
